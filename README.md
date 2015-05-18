@@ -3,6 +3,13 @@ What the Internet thinks
 
 http://groupthink.aaronoellis.com/v1/
 
+### Deployment
+
+Install the init conf
+
+Install the nginx sites enabled
+
+
 ### APIs
 
 The [Reddit API](http://www.reddit.com/dev/api)
