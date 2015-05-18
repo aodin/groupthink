@@ -2,8 +2,10 @@ package v1
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
+	"time"
 )
 
 type slackQuery struct {
@@ -22,6 +24,24 @@ func (q slackQuery) URL() (*url.URL, error) {
 	// TODO error if the command was wrong
 	// TODO error if the text was not a url
 	return nil, fmt.Errorf("A work in progress")
+}
+
+func logger(q slackQuery, then time.Time) {
+	if q.Command == "" {
+		// TODO separate failure logs?
+		log.Println("failed query")
+		return
+	}
+	log.Printf(
+		"%s (%s: %s) on %s ran %s (%s) for %s",
+		q.UserName,
+		q.TeamDomain,
+		q.Token,
+		q.ChannelName,
+		q.Command,
+		q.Text,
+		time.Now().Sub(then),
+	)
 }
 
 func fromRequest(r *http.Request) (slack slackQuery) {
@@ -46,6 +66,7 @@ func Query(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := fromRequest(r)
+	defer logger(q, time.Now())
 
 	// Parse the text as a url
 	_, err := q.URL()

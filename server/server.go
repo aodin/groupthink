@@ -21,8 +21,13 @@ func (server *Server) ListenAndServe() error {
 	return http.ListenAndServe(server.Config.Address(), nil)
 }
 
+func Favicon(w http.ResponseWriter, r *http.Request) {
+	return
+}
+
 func New(conf config.Config) *Server {
 	http.Handle("/", http.RedirectHandler(v1.Prefix, 302))
+	http.HandleFunc("/favicon.ico", Favicon)
 	http.HandleFunc(v1.Prefix, v1.Query)
 	return &Server{Config: conf}
 }
