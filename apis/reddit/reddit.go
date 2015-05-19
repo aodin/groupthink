@@ -7,13 +7,13 @@ import (
 	"net/url"
 )
 
-type Reddit struct{}
+type API struct{}
 
 type Comments []Comment
 
 // TODO Sort?
 
-func (reddit *Reddit) Search(u *url.URL) (Comments, error) {
+func (reddit *API) Search(u *url.URL) (Comments, error) {
 	resp, err := http.Get(searchURL(u))
 	if err != nil {
 		return nil, fmt.Errorf("Reddit search failed: %s", err)

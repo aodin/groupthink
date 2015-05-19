@@ -5,7 +5,10 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
+
+	"github.com/aodin/groupthink/apis/reddit"
 )
 
 type slackQuery struct {
@@ -21,9 +24,15 @@ type slackQuery struct {
 }
 
 func (q slackQuery) URL() (*url.URL, error) {
-	// TODO error if the command was wrong
-	// TODO error if the text was not a url
-	return nil, fmt.Errorf("A work in progress")
+	args := strings.TrimSpace(q.Text)
+	if args == "" {
+		return nil, fmt.Errorf("Please provide a URL as the only argument")
+	}
+
+	if !strings.HasPrefix(strings.ToLower(args), "http") {
+		args = "http://" + args
+	}
+	return url.Parse(args)
 }
 
 func logger(q slackQuery, then time.Time) {
@@ -57,8 +66,14 @@ func fromRequest(r *http.Request) (slack slackQuery) {
 	return
 }
 
+// TODO Convert to a non-global if state ever gets attached
+var redditAPI = reddit.API{}
+
 // Query converts Slack POST data to a response
 func Query(w http.ResponseWriter, r *http.Request) {
+	// Return all responses as plain text
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+
 	// Parse the POST
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, fmt.Sprintf("Could not parse request: %s", err), 400)
@@ -69,12 +84,43 @@ func Query(w http.ResponseWriter, r *http.Request) {
 	defer logger(q, time.Now())
 
 	// Parse the text as a url
-	_, err := q.URL()
+	u, err := q.URL()
 	if err != nil {
 		http.Error(w, err.Error(), 400)
 		return
 	}
 
-	// TODO Query the requested APIs async and with timeouts
-	http.Error(w, "In progress", 400)
+	// TODO query mutliple APIs
+	comments, err := redditAPI.Search(u)
+	if err != nil {
+		// TODO Distinguish between a 400 and a 500?
+		http.Error(w, err.Error(), 400)
+		return
+	}
+
+	if len(comments) < 1 {
+		http.Error(w, "No groupthink was found for this link", 404)
+		return
+	}
+
+	timeAgo := time.Now().UTC().Sub(comments[0].Created.AsTime()).Hours()
+	var age string
+	switch {
+	case timeAgo < 1:
+		age = "less than an hour ago"
+	case timeAgo < 24:
+		age = "less than a day ago"
+	case timeAgo < (24 * 7):
+		age = "less than a week ago"
+	default:
+		age = fmt.Sprint("%d days ago", timeAgo/24.0)
+	}
+
+	message := fmt.Sprintf(`>>> %s
+%s (%s)`,
+		comments[0].Body,
+		comments[0].Permalink,
+		age,
+	)
+	w.Write([]byte(message))
 }
