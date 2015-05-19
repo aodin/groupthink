@@ -3,6 +3,7 @@ package reddit
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -23,6 +24,15 @@ func (reddit *API) Search(u *url.URL) (Comments, error) {
 		return nil, fmt.Errorf("Reddit search failed: %s", err)
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		all, _ := ioutil.ReadAll(resp.Body)
+		return nil, fmt.Errorf(
+			"Non-200 status code from Search (%d): %s",
+			resp.StatusCode,
+			all,
+		)
+	}
 
 	articles, err := unmarshalSearch(json.NewDecoder(resp.Body))
 	if err != nil {
