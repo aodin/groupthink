@@ -3,6 +3,7 @@ package reddit
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 )
@@ -14,7 +15,10 @@ type Comments []Comment
 // TODO Sort?
 
 func (reddit *API) Search(u *url.URL) (Comments, error) {
-	resp, err := http.Get(searchURL(u))
+	requestURL := searchURL(u)
+	log.Printf("Searching Reddit with %s", requestURL)
+
+	resp, err := http.Get(requestURL)
 	if err != nil {
 		return nil, fmt.Errorf("Reddit search failed: %s", err)
 	}
@@ -28,11 +32,17 @@ func (reddit *API) Search(u *url.URL) (Comments, error) {
 	if len(articles) == 0 {
 		return nil, fmt.Errorf("This article has not been posted")
 	}
+	log.Printf("%s returned %d results", requestURL, len(articles))
 
 	var comments Comments
 
 	// TODO Query all the articles that have comments
 	for _, article := range articles {
+		log.Printf(
+			"Found article %s with %d comments",
+			article.Data.Title,
+			article.Data.NumberOfComments,
+		)
 		if article.Data.NumberOfComments > 0 {
 			commentResp, err := http.Get(commentURL(article.Data.ID))
 			if err != nil {
@@ -52,9 +62,19 @@ func (reddit *API) Search(u *url.URL) (Comments, error) {
 				comment.Data.Permalink = article.Data.Permalink
 				comments = append(comments, comment.Data)
 			}
+			// TODO quit here for now
+			return comments, nil
 		}
 	}
 	return nil, fmt.Errorf("There are no posts with comments available")
+}
+
+func searchURL(dirty *url.URL) string {
+	// Search only the domain and path, drop scheme, query, and fragment
+	return fmt.Sprintf(
+		"http://www.reddit.com/search.json?q=url:%s",
+		(&url.URL{Host: dirty.Host, Path: dirty.Path}).String()[2:],
+	)
 }
 
 func commentURL(id string) string {
@@ -113,14 +133,6 @@ func unmarshalComments(decoder *json.Decoder) ([]RawComment, error) {
 		return nil, fmt.Errorf("Could not parse Reddit comment: %s", err)
 	}
 	return comments.Data.Children, nil
-}
-
-func searchURL(dirty *url.URL) string {
-	// Search only the domain and path, drop scheme, query, and fragment
-	return fmt.Sprintf(
-		"http://www.reddit.com/search/json?q=url:%s",
-		(&url.URL{Host: dirty.Host, Path: dirty.Path}).String(),
-	)
 }
 
 type Article struct {

@@ -113,10 +113,11 @@ func Query(w http.ResponseWriter, r *http.Request) {
 	case timeAgo < (24 * 7):
 		age = "less than a week ago"
 	default:
-		age = fmt.Sprint("%d days ago", timeAgo/24.0)
+		age = fmt.Sprintf("%d days ago", int(timeAgo/24.0))
 	}
 
 	message := fmt.Sprintf(`>>> %s
+
 %s (%s)`,
 		comments[0].Body,
 		comments[0].Permalink,
